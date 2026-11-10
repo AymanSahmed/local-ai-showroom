@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+*.user
+bridge/appsettings.local.json
+bridge/nuget-local/*.nupkg
+dist/
+diagnostics-*.txt
+*.msix
+*.pfx
+node_modules/

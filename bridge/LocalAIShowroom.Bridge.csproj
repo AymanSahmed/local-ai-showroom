@@ -1,0 +1,79 @@
+<!--
+  Local AI Showroom - local bridge
+  A tiny ASP.NET Core server (loopback only) that serves the web UI and exposes
+  Windows AI APIs, Windows ML, Foundry Local, winml-cli and (optionally) the
+  Aion Instruct Preview SDK to the browser.
+
+  Run (with package identity, required for Windows AI APIs):   dotnet run
+  Run without identity (Foundry Local + Windows ML only):      dotnet run -p:EnableWinAppRunSupport=false
+  Include the Aion Instruct Preview lane:                       dotnet run -p:EnableAion=true
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.22621.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.22621.0</SupportedOSPlatformVersion>
+    <RootNamespace>LocalAIShowroom.Bridge</RootNamespace>
+    <AssemblyName>LocalAIShowroom.Bridge</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\VERSION').Trim())</Version>
+
+    <!-- Build for the machine's native architecture by default (x64 or ARM64). -->
+    <Platforms>x64;ARM64</Platforms>
+    <ShowroomNativeArch>$([MSBuild]::ValueOrDefault('$(PROCESSOR_ARCHITEW6432)', '$(PROCESSOR_ARCHITECTURE)'))</ShowroomNativeArch>
+    <Platform Condition="'$(Platform)' == '' Or '$(Platform)' == 'AnyCPU'">$(ShowroomNativeArch.Replace('AMD64', 'x64'))</Platform>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifier Condition="'$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(Platform)' == 'x64'">win-x64</RuntimeIdentifier>
+
+    <!-- winapp CLI: 'dotnet run' registers a loose-layout package (package identity) and
+         launches through an execution alias so the console output stays in this terminal. -->
+    <WinAppRunUseExecutionAlias>true</WinAppRunUseExecutionAlias>
+
+    <!-- Windows AI APIs need MaxVersionTested >= 10.0.26226.0 in Package.appxmanifest. Keep tooling from rewriting it. -->
+    <AppxOSMinVersionReplaceManifestVersion>false</AppxOSMinVersionReplaceManifestVersion>
+    <AppxOSMaxVersionTestedReplaceManifestVersion>false</AppxOSMaxVersionTestedReplaceManifestVersion>
+
+    <EnableAion Condition="'$(EnableAion)' == ''">false</EnableAion>
+  </PropertyGroup>
+
+  <!-- Unpackaged fallback (no identity): the Windows App SDK bootstrapper initializes the runtime so Windows ML still works. -->
+  <PropertyGroup Condition="'$(EnableWinAppRunSupport)' == 'false'">
+    <WindowsPackageType>None</WindowsPackageType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(EnableAion)' == 'true'">
+    <DefineConstants>$(DefineConstants);AION</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Windows App SDK 2.6+: Windows AI APIs (no Language Model LAF token needed since 2.6.4) + Windows ML
+         (ONNX Runtime + execution provider catalog). Floating patch = latest 2.6.x stable. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.*" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.*" />
+    <!-- winapp CLI integration for 'dotnet run' with package identity. -->
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools.WinApp" Version="*-*" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Optional: Aion Instruct Preview SDK (not on nuget.org; drop the .nupkg into ./nuget-local). -->
+  <ItemGroup Condition="'$(EnableAion)' == 'true'">
+    <PackageReference Include="AionInstructPreview.Text.Framework" Version="[1.1.0]" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.1.5" />
+  </ItemGroup>
+
+  <!-- The web UI and settings are served from the build output (which is also the package layout). -->
+  <ItemGroup>
+    <None Update="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="appsettings*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Assets\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

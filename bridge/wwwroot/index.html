@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local AI Showroom · on-device AI on Windows</title>
+  <meta name="description" content="Demo cockpit for Windows AI APIs, Foundry Local, Windows ML and winml-cli - everything runs on this PC.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="favicon.svg" alt="" width="36" height="36">
+      <div>
+        <h1>Local AI Showroom</h1>
+        <p>Microsoft on-device AI, live on this PC · no cloud required</p>
+      </div>
+    </div>
+    <div class="pills">
+      <span id="pill-version" class="pill muted" title="Version of the web UI">v…</span>
+      <span id="pill-bridge" class="pill muted" title="Connection to the local bridge">Bridge: checking…</span>
+      <span id="pill-silicon" class="pill muted" title="Accelerators Windows ML can use">Silicon: …</span>
+      <span id="pill-privacy" class="pill ok" title="Outbound calls from the bridge are limited to localhost">Cloud calls: 0</span>
+      <button id="theme-toggle" class="icon-btn" title="Switch light/dark theme" aria-label="Switch theme">◐</button>
+    </div>
+  </header>
+
+  <div id="sim-banner" class="banner" hidden>
+    <strong>Simulation mode.</strong> Answers are canned so you can rehearse anywhere. Start the real bridge (<code>dotnet run</code>) on a Copilot+ PC for on-device AI.
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="Demo acts">
+    <button role="tab" data-tab="readiness" aria-selected="true"><span class="step">1</span>Readiness</button>
+    <button role="tab" data-tab="arena" aria-selected="false"><span class="step">2</span>Model Arena</button>
+    <button role="tab" data-tab="docdesk" aria-selected="false"><span class="step">3</span>Private Doc Desk</button>
+    <button role="tab" data-tab="lab" aria-selected="false"><span class="step">4</span>Silicon Lab</button>
+  </nav>
+
+  <main>
+    <!-- ============================== 1 · READINESS ============================== -->
+    <section id="tab-readiness" class="tab-panel" role="tabpanel">
+      <div class="hero">
+        <div>
+          <h2>Is this PC ready for on-device AI?</h2>
+          <p class="muted">A live inventory of every Microsoft local-AI stack on this machine. Checking it sends nothing to the cloud.</p>
+        </div>
+        <div id="ready-meter" class="meter" aria-live="polite"></div>
+      </div>
+      <div id="machine-card" class="machine card"></div>
+      <div id="stack-cards" class="grid cards"></div>
+      <div class="row end">
+        <button id="btn-diagnostics" class="btn ghost" title="Copies a report of this PC and the app status, to share when something doesn't work">Copy diagnostics</button>
+        <button id="btn-refresh" class="btn">Refresh</button>
+      </div>
+    </section>
+
+    <!-- ============================== 2 · MODEL ARENA ============================== -->
+    <section id="tab-arena" class="tab-panel" role="tabpanel" hidden>
+      <div class="section-head">
+        <h2>Model Arena</h2>
+        <p class="muted">One prompt, several on-device engines side by side. Compare time to first token, throughput and answer quality.</p>
+      </div>
+      <div class="card prompt-card">
+        <div id="arena-presets" class="presets" aria-label="Prompt presets"></div>
+        <details class="system">
+          <summary>System prompt</summary>
+          <textarea id="arena-system" rows="2" placeholder="Optional instructions for every engine" dir="auto"></textarea>
+        </details>
+        <textarea id="arena-prompt" rows="4" placeholder="Ask anything… (Ctrl+Enter to run)" dir="auto"></textarea>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="arena-parallel"> Run lanes in parallel</label>
+          <span class="spacer"></span>
+          <button id="arena-add" class="btn ghost">+ Lane</button>
+          <button id="arena-stop" class="btn ghost">Stop</button>
+          <button id="arena-run" class="btn primary">Run ▶</button>
+        </div>
+      </div>
+      <div id="arena-lanes" class="lanes"></div>
+    </section>
+
+    <!-- ============================== 3 · PRIVATE DOC DESK ============================== -->
+    <section id="tab-docdesk" class="tab-panel" role="tabpanel" hidden>
+      <div class="section-head">
+        <h2>Private Doc Desk</h2>
+        <p class="muted">A confidential document that never leaves this PC: OCR (on the NPU when available, otherwise Windows' built-in OCR on the CPU), then summarize, extract, translate and ask questions.</p>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-head">
+            <h3>1 · Document</h3>
+            <div class="row tight">
+              <label class="btn ghost small">Upload image<input type="file" id="doc-file" accept="image/*" hidden></label>
+              <button id="doc-sample" class="btn ghost small">Sample scan</button>
+              <button id="doc-clear" class="btn ghost small">Clear</button>
+            </div>
+          </div>
+          <div id="doc-stage" class="stage">
+            <div class="placeholder">Upload a scan or photo, or load the sample claim form.</div>
+          </div>
+          <div class="row">
+            <button id="doc-ocr" class="btn primary">Extract text (OCR)</button>
+            <span id="doc-ocr-stats" class="muted small"></span>
+          </div>
+          <textarea id="doc-text" rows="10" placeholder="Extracted text appears here, or paste any text." dir="auto"></textarea>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>2 · Ask the PC</h3></div>
+          <label class="field">Engine
+            <select id="doc-engine" aria-label="Engine for document actions"></select>
+          </label>
+          <div class="action-grid">
+            <button class="btn" data-doc-action="summarize">Summarize</button>
+            <button class="btn" data-doc-action="rewrite">Rewrite clearly</button>
+            <button class="btn" data-doc-action="extract">Extract fields → JSON</button>
+            <div class="split">
+              <button class="btn" data-doc-action="translate">Translate</button>
+              <select id="doc-translate-lang" aria-label="Translate to"></select>
+            </div>
+            <div class="split">
+              <button class="btn" data-doc-action="describe">Describe the image</button>
+              <select id="doc-describe-kind" aria-label="Description type">
+                <option value="brief">brief</option>
+                <option value="detailed" selected>detailed</option>
+                <option value="accessible">accessible</option>
+                <option value="diagram">diagram</option>
+              </select>
+            </div>
+          </div>
+          <div class="row ask">
+            <input id="doc-question" type="text" placeholder="Ask a question about this document…" dir="auto">
+            <button id="doc-ask" class="btn primary">Ask</button>
+          </div>
+          <div id="doc-results" class="results"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== 4 · SILICON LAB ============================== -->
+    <section id="tab-lab" class="tab-panel" role="tabpanel" hidden>
+      <div class="section-head">
+        <h2>Silicon Lab</h2>
+        <p class="muted">Your own ONNX model through Windows ML. Run it on the NPU, GPU or CPU and compare the numbers.</p>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-head">
+            <h3>Input</h3>
+            <div class="row tight">
+              <label class="btn ghost small">Upload image<input type="file" id="lab-file" accept="image/*" hidden></label>
+              <button id="lab-camera" class="btn ghost small">Use camera</button>
+            </div>
+          </div>
+          <div class="stage lab-stage">
+            <video id="lab-video" playsinline muted hidden></video>
+            <img id="lab-img" alt="Selected image" hidden>
+            <div id="lab-placeholder" class="placeholder">Upload a photo or turn on the camera. Try a mug, a keyboard, a banana…</div>
+            <div id="lab-live-label" class="live-label" hidden></div>
+          </div>
+          <div class="row">
+            <label class="check"><input type="checkbox" id="lab-live"> Live classification (camera)</label>
+            <span id="lab-live-stats" class="muted small"></span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>Run on…</h3>
+            <span id="lab-model" class="muted small"></span>
+          </div>
+          <div id="lab-devices" class="device-picker" role="radiogroup" aria-label="Device"></div>
+          <div class="row">
+            <label class="field inline">Timed runs
+              <select id="lab-iterations"><option>1</option><option selected>10</option><option>50</option><option>100</option></select>
+            </label>
+            <span class="spacer"></span>
+            <button id="lab-race" class="btn">Race all devices</button>
+            <button id="lab-run" class="btn primary">Classify</button>
+          </div>
+          <div id="lab-result"></div>
+          <div id="lab-race-result"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Benchmark with winml-cli</h3>
+          <span class="muted small">Runs <code>winml perf</code> on the same model file</span>
+        </div>
+        <div class="row">
+          <label class="field inline">Device
+            <select id="perf-device"><option value="auto">auto</option><option value="npu">npu</option><option value="gpu">gpu</option><option value="cpu">cpu</option></select>
+          </label>
+          <label class="field inline">Iterations
+            <select id="perf-iterations"><option>20</option><option selected>50</option><option>200</option></select>
+          </label>
+          <span class="spacer"></span>
+          <button id="perf-run" class="btn">Run winml perf</button>
+        </div>
+        <div id="perf-result"></div>
+      </div>
+    </section>
+  </main>
+
+  <details id="activity" class="activity">
+    <summary>
+      <span class="activity-title">Activity</span>
+      <span class="muted small">every call below ran on this PC</span>
+      <span id="activity-count" class="chip muted">0</span>
+    </summary>
+    <ol id="activity-list"></ol>
+  </details>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
